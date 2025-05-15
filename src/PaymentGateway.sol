@@ -1,36 +1,50 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-contract PaymentGateway {
-    address public owner;
-    address idrx = 0x18Bc5bcC660cf2B9cE3cd51a404aFe1a0cBD3C22;
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract PaymentGateway is Ownable {
+    using SafeERC20 for IERC20;
+    
+    constructor() Ownable(msg.sender) {
+    }
+
+    struct PaymentData {
+        string productName;
+        uint256 orderId;
+        uint8 quantity;
+    }
 
     event PaymentReceived(
         address indexed buyer,
         address indexed seller,
-        address token,
+        address indexed token,
         uint256 amount,
-        bytes32 dataHash
+        PaymentData data
     );
-
-    constructor() {
-        owner = msg.sender;
-    }
 
     function payWithToken(
         address seller,
         address token,
         uint256 amount,
-        bytes32 dataHash
+        PaymentData calldata data
     ) external {
-        require(seller != address(0), "Invalid seller address");
-        require(token != address(0), "Invalid token");
-        require(IERC20(token).balanceOf(msg.sender) >= amount, "Insufficient balance");
-        require(IERC20(token).allowance(msg.sender, address(this)) >= amount, "Insufficient allowance");
+        require(seller != address(0), "Seller address cannot be zero");
+        require(token != address(0), "Token address cannot be zero");
+        require(amount > 0, "Amount must be greater than zero");
 
-        bool success = IERC20(token).transferFrom(msg.sender, seller, amount);
-        require(success, "Token transfer failed");
+        IERC20 erc20 = IERC20(token);
 
-        emit PaymentReceived(msg.sender, seller, token, amount, dataHash);
+        uint256 balance = erc20.balanceOf(msg.sender);
+        require(balance >= amount, "Insufficient token balance");
+
+        uint256 allowance = erc20.allowance(msg.sender, address(this));
+        require(allowance >= amount, "Insufficient token allowance");
+
+        // Safe transfer
+        erc20.safeTransferFrom(msg.sender, seller, amount);
+
+        emit PaymentReceived(msg.sender, seller, token, amount, data);
     }
 }

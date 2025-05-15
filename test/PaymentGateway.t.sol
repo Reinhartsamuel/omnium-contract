@@ -26,8 +26,13 @@ contract PaymentGatewayTest is Test {
         vm.startPrank(alice);
         IERC20(idrx).approve(address(paymentGateway), 17000e2);
 
-        bytes32 orderHash = keccak256(abi.encode("karung", 2, "order-001"));
-        paymentGateway.payWithToken(bob, address(idrx), 17000e2, orderHash);
+        PaymentGateway.PaymentData memory data = PaymentGateway.PaymentData({
+            productName: "karung",
+            orderId: 1,
+            quantity: 2
+        });
+        
+        paymentGateway.payWithToken(bob, address(idrx), 17000e2, data);
         
         vm.stopPrank();
         console.log("balance alice after::", IERC20(idrx).balanceOf(address(alice)));
@@ -35,15 +40,20 @@ contract PaymentGatewayTest is Test {
         assertEq(IERC20(idrx).balanceOf(address(bob)), 17000e2);
     }
 
-        function test_PayWithTokenInsufficientAllowance() public {
+    function test_PayWithTokenInsufficientAllowance() public {
         deal(idrx, address(alice), 17000e2);
 
         vm.startPrank(alice);
         // IERC20(idrx).approve(address(paymentGateway), 17000e2);
 
-        bytes32 orderHash = keccak256(abi.encode("karung", 2, "order-001"));
-        vm.expectRevert("Insufficient allowance");
-        paymentGateway.payWithToken(bob, address(idrx), 17000e2, orderHash);
+        PaymentGateway.PaymentData memory data = PaymentGateway.PaymentData({
+            productName: "karung",
+            orderId: 1,
+            quantity: 2
+        });
+        
+        vm.expectRevert("Insufficient token allowance");
+        paymentGateway.payWithToken(bob, address(idrx), 17000e2, data);
         
         vm.stopPrank();
     }
